@@ -19,10 +19,12 @@ int main() {
   std::string path = "../messages/",
               output_path = "../received_messages/message";
   std::vector<std::ifstream> files;
+  std::vector<std::string> files_for_input, files_for_output;
 
   // проходимся по директории messages и открываем все файлы на считывание
   for (const auto &entry : std::filesystem::directory_iterator(path)) {
     files.push_back(std::ifstream(entry.path()));
+    files_for_input.push_back(entry.path().string());
   }
   int number = files.size(), users_num = files.size();
 
@@ -31,6 +33,7 @@ int main() {
 
   // закидываем все файлы, куда будут записаны переданный данные в массив
   for (int i = 0; i < users_num; ++i) {
+    files_for_output.push_back(output_path + std::to_string(i) + ".txt");
     output_files[i] = std::ofstream(output_path + std::to_string(i) + ".txt",
                                     std::ios_base::out);
     if (output_files[i].fail()) {
@@ -288,6 +291,10 @@ int main() {
   graph << "Packets;Errors\n";
   for (int i = 0; i < users_num - static_cast<int>(flag_for_subcarrier); ++i) {
     graph << errors[i].first << ";" << errors[i].second << "\n";
+  }
+  std::cout << "Sender --> Receiver\n";
+  for (int i = 0; i < users_num - static_cast<int>(flag_for_subcarrier); ++i) {
+    std::cout << files_for_input[i] << " --> " << files_for_output[i] << "\n";
   }
   return 0;
 }
