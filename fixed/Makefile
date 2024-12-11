@@ -1,2 +1,2 @@
 all:
-	g++ -g *.cpp -o ./builded_from_Make/main
+	g++ -std=c++20 -g *.cpp -o ./built_from_Make/main

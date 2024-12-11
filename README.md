@@ -12,7 +12,7 @@ cd fixed
 
 ```bash
 make
-cd ./builded_from_Makefile
+cd ./built_from_Makefile
 ./main.exe
 ```
 
