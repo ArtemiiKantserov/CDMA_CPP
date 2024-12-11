@@ -2,7 +2,6 @@
 
 #include <filesystem>
 #include <fstream>
-#include <iomanip>
 #include <iostream>
 #include <set>
 #include <string>
@@ -13,8 +12,10 @@
 #include "temp_bpsk.hpp"
 #include "temp_debpsk.hpp"
 
+#define PACKET_SIZE 1024
+
 int main() {
-  std::srand(std::time(nullptr));
+  srand(time(0));
   // std::string path = "messages/", output_path = "received_messages/message";
   std::string path = "../messages/",
               output_path = "../received_messages/message";
@@ -74,6 +75,7 @@ int main() {
   generate_hadamard(hadamard, number, 0, 0, 1);
   generate_negative_hadamard(negative_hadamard, number, 0, 0, 1);
 
+  // создаем алфавит для пользователей
   char ****alphabet_for_all_users = new char ***[users_num];
   for (int i = 0; i < users_num; ++i) {
     alphabet_for_all_users[i] =
@@ -94,13 +96,13 @@ int main() {
   std::cout << "Current time: " << current_time;
 
   // calloc для инициализации \0
-  char *ether = new char[1024];
-  std::fill(ether, ether + 1024, 0);
-  // char *ether = (char *)calloc(1024, sizeof(char));
+  char *ether = new char[PACKET_SIZE];
+  std::fill(ether, ether + PACKET_SIZE, 0);
+  // char *ether = (char *)calloc(PACKET_SIZE, sizeof(char));
 
   // генерация несущей с частотой carrier_freq и временем одного сигнала
   // bit_time
-  int carrier_freq = 80;
+  int carrier_freq = 200;
   double bit_time = 0.1;
   double *t = linspace(0, bit_time, bit_time * carrier_freq, true);
   double *carrier_wave =
@@ -109,6 +111,8 @@ int main() {
   for (int i = 0; i < bit_time * carrier_freq / 2; ++i) {
     semi_carrier_wave_sum += carrier_wave[i];
   }
+  // double *subcarrier =
+  //     create_subcarrier(carrier_wave, bit_time * carrier_freq, number);
 
   // множество для проверки конца передачи
   std::set<int> ended;
@@ -118,37 +122,38 @@ int main() {
 
   // выделяем память под модулированный сигнал
   double *space_for_modulation =
-      new double[(int)(bit_time * carrier_freq * 8 * 1024 * number)];
-  std::fill(
-      space_for_modulation,
-      space_for_modulation + (int)(bit_time * carrier_freq * 8 * 1024 * number),
-      0);
+      new double[(int)(bit_time * carrier_freq * 8 * PACKET_SIZE * number)];
+  std::fill(space_for_modulation,
+            space_for_modulation +
+                (int)(bit_time * carrier_freq * 8 * PACKET_SIZE * number),
+            0);
 
-  char ***space_for_encoding = new char **[1024];
+  char ***space_for_encoding = new char **[PACKET_SIZE];
   double *modulated =
-      new double[(int)(bit_time * carrier_freq * 8 * 1024 * number)];
+      new double[(int)(bit_time * carrier_freq * 8 * PACKET_SIZE * number)];
 
   // цикл до конца всех файлов
   while (true) {
     int n = 0;
     bool end = false;
-    std::fill(modulated,
-              modulated + (int)(bit_time * carrier_freq * 8 * 1024 * number),
-              0);
+    std::fill(
+        modulated,
+        modulated + (int)(bit_time * carrier_freq * 8 * PACKET_SIZE * number),
+        0);
     // массив для проверки корректности передачи пакетов
     char **got_message = new char *[users_num];
 
     for (int i = 0; i < users_num; ++i) {
-      got_message[i] = new char[1024];
-      std::fill(got_message[i], got_message[i] + 1024, 0);
+      got_message[i] = new char[PACKET_SIZE];
+      std::fill(got_message[i], got_message[i] + PACKET_SIZE, 0);
       if (i == users_num - 1 && flag_for_subcarrier) {
-        encode(space_for_encoding, ether, 1024, alphabet_for_all_users[i],
-               number);
+        encode(space_for_encoding, ether, PACKET_SIZE,
+               alphabet_for_all_users[i], number);
         bpsk_modulation(space_for_modulation, space_for_encoding, carrier_wave,
                         number, 8);
         interfere(modulated, space_for_modulation,
-                  (int)(bit_time * carrier_freq * 8 * 1024 * number));
-        std::fill(ether, ether + 1024, 0);
+                  (int)(bit_time * carrier_freq * 8 * PACKET_SIZE * number));
+        std::fill(ether, ether + PACKET_SIZE, 0);
       }
 
       // если файл кончился
@@ -157,23 +162,27 @@ int main() {
         ended.insert(i);
         ++n;
 
+        // add_subcarrier(modulated, subcarrier,
+        //                (int)(bit_time * carrier_freq * 8 * PACKET_SIZE *
+        //                number));
         // все файлы кончились
         if (n == users_num - static_cast<int>(flag_for_subcarrier)) {
           if (i == users_num - 1 && flag_for_subcarrier) {
-            encode(space_for_encoding, ether, 1024, alphabet_for_all_users[i],
-                   number);
+            encode(space_for_encoding, ether, PACKET_SIZE,
+                   alphabet_for_all_users[i], number);
             bpsk_modulation(space_for_modulation, space_for_encoding,
                             carrier_wave, number, 8);
-            interfere(modulated, space_for_modulation,
-                      (int)(bit_time * carrier_freq * 8 * 1024 * number));
-            std::fill(ether, ether + 1024, 0);
+            interfere(
+                modulated, space_for_modulation,
+                (int)(bit_time * carrier_freq * 8 * PACKET_SIZE * number));
+            std::fill(ether, ether + PACKET_SIZE, 0);
           }
           end = true;
           break;
         }
       } else {
         // считываем пакет размером 1 Кб
-        files[i].read(ether, 1024);
+        files[i].read(ether, PACKET_SIZE);
 
         strcpy(got_message[i], ether);
 
@@ -186,8 +195,8 @@ int main() {
             << "\n";
 
         // кодируем пакет
-        encode(space_for_encoding, ether, 1024, alphabet_for_all_users[i],
-               number);
+        encode(space_for_encoding, ether, PACKET_SIZE,
+               alphabet_for_all_users[i], number);
         time(&rawtime);
         current_time = asctime(localtime(&rawtime));
         current_time.pop_back();
@@ -197,7 +206,7 @@ int main() {
         bpsk_modulation(space_for_modulation, space_for_encoding, carrier_wave,
                         number, 8);
         interfere(modulated, space_for_modulation,
-                  (int)(bit_time * carrier_freq * 8 * 1024 * number));
+                  (int)(bit_time * carrier_freq * 8 * PACKET_SIZE * number));
 
         time(&rawtime);
         current_time = asctime(localtime(&rawtime));
@@ -205,7 +214,7 @@ int main() {
         log << current_time << ": Message from user " << i
             << " was modulated\n";
 
-        std::fill(ether, ether + 1024, 0);
+        std::fill(ether, ether + PACKET_SIZE, 0);
       }
     }
     if (end) {
@@ -213,7 +222,7 @@ int main() {
     }
 
     char ***demodulated = bpsk_demodulation(
-        modulated, carrier_wave, semi_carrier_wave_sum, 8, 1024, number);
+        modulated, carrier_wave, semi_carrier_wave_sum, 8, PACKET_SIZE, number);
     for (int i = 0; i < output_files.size(); ++i) {
       // если файл уже закончился
       if (ended.find(i) != ended.end()) continue;
@@ -226,7 +235,7 @@ int main() {
           << " was demodulated\n";
 
       // декодируем пакет
-      char *decoded = decode(demodulated, 1024, hadamard[i], number);
+      char *decoded = decode(demodulated, PACKET_SIZE, hadamard[i], number);
       time(&rawtime);
       current_time = asctime(localtime(&rawtime));
       current_time.pop_back();
@@ -241,7 +250,7 @@ int main() {
                 << " got message from user " << i << "\n";
       log << current_time << ": Receiver " << i << " got message from user "
           << i << "\n";
-      int error = find_diff(decoded, got_message[i], 1024);
+      int error = find_diff(decoded, got_message[i], PACKET_SIZE);
       log << "Packet has " << error << " bits different\n";
       errors[i].second += error;
       ++errors[i].first;
@@ -251,7 +260,7 @@ int main() {
     for (int i = 0; i < users_num; ++i) {
       delete[] got_message[i];
     }
-    for (int i = 0; i < 1024; ++i) {
+    for (int i = 0; i < PACKET_SIZE; ++i) {
       for (int j = 0; j < 8; ++j) {
         delete[] demodulated[i][j];
       }
@@ -288,7 +297,7 @@ int main() {
   delete[] modulated;
   std::ofstream graph("../errors.csv", std::ios::out);
   // std::ofstream graph("errors.csv", std::ios::out);
-  graph << "Packets;Errors\n";
+  graph << "Packets, kilobytes;Errors, bits\n";
   for (int i = 0; i < users_num - static_cast<int>(flag_for_subcarrier); ++i) {
     graph << errors[i].first << ";" << errors[i].second << "\n";
   }
@@ -296,5 +305,6 @@ int main() {
   for (int i = 0; i < users_num - static_cast<int>(flag_for_subcarrier); ++i) {
     std::cout << files_for_input[i] << " --> " << files_for_output[i] << "\n";
   }
+  // delete[] subcarrier;
   return 0;
 }

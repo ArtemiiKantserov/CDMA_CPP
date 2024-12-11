@@ -1,5 +1,4 @@
-#include <cmath>
-#include <iostream>
+#include "temp_debpsk.hpp"
 
 auto bpsk_demodulation(double* signal, double semi_carrier_wave_sum,
                        int samples_per_bit, int packet_size,
