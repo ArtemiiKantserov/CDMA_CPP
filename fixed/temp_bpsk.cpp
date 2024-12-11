@@ -3,6 +3,8 @@
 #include <iostream>
 #include <random>
 
+#define M_PI 3.14159265358979323846
+
 auto linspace(double start, double end, int count, bool endpoint) -> double* {
   double step = (static_cast<double>(fabs(end - start))) / (count - 1);
   if (!endpoint) {
