@@ -21,6 +21,7 @@ cd ./built_from_Makefile
 ```bash
 cd ./build
 cmake ..
+(cmake --build ..)
 ./main.exe
 ```
 
