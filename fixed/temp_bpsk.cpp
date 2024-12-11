@@ -1,8 +1,5 @@
 #include "temp_bpsk.hpp"
 
-#include <iostream>
-#include <random>
-
 #define M_PI 3.14159265358979323846
 
 auto linspace(double start, double end, int count, bool endpoint) -> double* {
@@ -25,7 +22,6 @@ auto generate_carrier_wave(int count, double* arr,
   }
   return carrier_wave;
 }
-
 
 // 1024*[8*[адамар]] - bits
 auto bpsk_modulation(char*** bits, double* carrier_wave, int len_hadamard,
@@ -58,11 +54,15 @@ auto bpsk_modulation(double* space, char*** bits, double* carrier_wave,
       for (int k = 0; k < len_hadamard; ++k) {
         if (bits[i][j][k] == 1) {
           for (int l = 0; l < len_wave; ++l) {
-            space[index++] = carrier_wave[l];
+            space[index++] =
+                carrier_wave[l] +
+                static_cast<double>(std::rand() % 30000 - 15000) / 1000000.0;
           }
         } else {
           for (int l = 0; l < len_wave; ++l) {
-            space[index++] = -carrier_wave[l];
+            space[index++] =
+                -(carrier_wave[l] +
+                  static_cast<double>(std::rand() % 30000 - 15000) / 1000000.0);
           }
         }
       }
@@ -72,6 +72,20 @@ auto bpsk_modulation(double* space, char*** bits, double* carrier_wave,
 auto interfere(double* first, double* second, int len) -> void {
   for (int i = 0; i < len; ++i) {
     first[i] += second[i];
-    first[i] += (std::rand() % 2000 - 1000) / 10000.0;
   }
+}
+
+auto add_subcarrier(double* first, double* second, int len) -> void {
+  for (int i = 0; i < len; ++i) {
+    first[i] += second[i];
+  }
+}
+
+auto create_subcarrier(double* carrier_wave, int len,
+                       int hadamard_size) -> double* {
+  double* subcarrier = new double[len * 8 * hadamard_size * 1024];
+  for (int i = 0; i < len * 8 * hadamard_size * 1024; ++i) {
+    subcarrier[i] = -carrier_wave[i % len];
+  }
+  return subcarrier;
 }

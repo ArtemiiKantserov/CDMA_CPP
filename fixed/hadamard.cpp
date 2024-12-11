@@ -1,7 +1,5 @@
 #include "hadamard.hpp"
 
-#include <iomanip>
-
 auto generate_hadamard(char **H, int size, int i, int j, char h) -> void {
   if (size == 1)
     H[i][j] = h;

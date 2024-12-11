@@ -1,7 +1,5 @@
 #include "encode.hpp"
 
-#include <bit>
-#include <iostream>
 auto encode(const char* str, int length, char*** alphabet,
             int key_size) -> char*** {
   char*** encoded = new char**[length];
@@ -74,11 +72,10 @@ auto clear_encoded(char*** encoded, int size) -> void {
 auto find_diff(char* a, char* b, int packet_size) -> int {
   int diff = 0;
   for (int i = 0; i < packet_size; ++i) {
-    // char xorred = a[i] ^ b[i];
-    // for (int j = 0; j < 8; ++j) {
-    //   diff += ((a[i] >> j) & 1u) ^ ((b[i] >> j) & 1u);
-    // }
-    diff += std::__popcount(a[i] ^ b[i]);
+    char xorred = a[i] ^ b[i];
+    for (int j = 0; j < 8; ++j) {
+      diff += (xorred >> j) & 1u;
+    }
   }
   return diff;
 }
