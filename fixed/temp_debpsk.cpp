@@ -1,5 +1,6 @@
 #include "temp_debpsk.hpp"
 
+#include <iostream>
 auto bpsk_demodulation(double* signal, double semi_carrier_wave_sum,
                        int samples_per_bit, int packet_size,
                        int key_length) -> char*** {
@@ -35,13 +36,14 @@ auto bpsk_demodulation(double* signal, double* carrier_wave,
     for (int j = 0; j < 8; ++j) {
       demodulated[i][j] = new char[key_length];
       for (int k = 0; k < key_length; ++k) {
-        double ratio = 0, sum1 = 0, sum2 = 0;
-        for (int l = 0; l < samples_per_bit / 2; ++l) {
+        double ratio = 0;
+        for (int l = 0; l < samples_per_bit; ++l) {
           ratio += signal[i * 8 * samples_per_bit * key_length +
                           j * key_length * samples_per_bit +
-                          k * samples_per_bit + l];
+                          k * samples_per_bit + l] *
+                   carrier_wave[l];
         }
-        if (ratio / semi_carrier_wave_sum > 0) {
+        if (ratio > 0) {
           demodulated[i][j][k] = 1;
         } else {
           demodulated[i][j][k] = -1;

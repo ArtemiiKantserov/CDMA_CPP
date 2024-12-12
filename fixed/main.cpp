@@ -14,6 +14,7 @@
 #include "temp_debpsk.hpp"
 
 #define PACKET_SIZE 1024
+#define BITS_PER_BYTE 8
 
 int main() {
   srand(time(0));
@@ -47,10 +48,8 @@ int main() {
 
   // задаем вторую несущую (пустого отправителя) для случаев, когда
   // пользователей четное число и может произойти зануление в bpsk
-  bool flag_for_subcarrier = false;
   if (users_num % 2 == 0) {
     ++number;
-    flag_for_subcarrier = true;
   }
 
   // быстрое определение ближайшей степени двойки для построения матрицы
@@ -106,7 +105,8 @@ int main() {
   double bit_time = 0.1;
   double *t = linspace(0, bit_time, bit_time * carrier_freq, true);
   double *carrier_wave =
-      generate_carrier_wave(bit_time * carrier_freq, t, carrier_freq);
+      generate_carrier_wave(carrier_freq * bit_time, t, carrier_freq);
+
   double semi_carrier_wave_sum = 0;
   for (int i = 0; i < bit_time * carrier_freq / 2; ++i) {
     semi_carrier_wave_sum += carrier_wave[i];
@@ -119,25 +119,25 @@ int main() {
   std::ofstream log("../latest.log", std::ios::out);
 
   // выделяем память под модулированный сигнал
-  double *space_for_modulation =
-      new double[(int)(bit_time * carrier_freq * 8 * PACKET_SIZE * number)];
+  double *space_for_modulation = new double[(
+      int)(bit_time * carrier_freq * BITS_PER_BYTE * PACKET_SIZE * number)];
   std::fill(space_for_modulation,
-            space_for_modulation +
-                (int)(bit_time * carrier_freq * 8 * PACKET_SIZE * number),
+            space_for_modulation + (int)(bit_time * carrier_freq *
+                                         BITS_PER_BYTE * PACKET_SIZE * number),
             0);
 
   char ***space_for_encoding = new char **[PACKET_SIZE];
-  double *modulated =
-      new double[(int)(bit_time * carrier_freq * 8 * PACKET_SIZE * number)];
+  double *modulated = new double[(int)(bit_time * carrier_freq * BITS_PER_BYTE *
+                                       PACKET_SIZE * number)];
 
   // цикл до конца всех файлов
   while (true) {
     int n = 0, iterative_num = 0;
     bool end = false;
-    std::fill(
-        modulated,
-        modulated + (int)(bit_time * carrier_freq * 8 * PACKET_SIZE * number),
-        0.0);
+    std::fill(modulated,
+              modulated + (int)(bit_time * carrier_freq * BITS_PER_BYTE *
+                                PACKET_SIZE * number),
+              0.0);
     // массив для проверки корректности передачи пакетов
     char **got_message = new char *[users_num];
 
@@ -145,7 +145,6 @@ int main() {
       got_message[i] = new char[PACKET_SIZE];
       std::fill(got_message[i], got_message[i] + PACKET_SIZE, 0);
       std::fill(ether, ether + PACKET_SIZE, 0);
-
       // если файл кончился
       if (files[i].eof()) {
         output_files[i].close();
@@ -178,9 +177,10 @@ int main() {
 
         // bpsk
         bpsk_modulation(space_for_modulation, space_for_encoding, carrier_wave,
-                        number, 8);
+                        number, bit_time * carrier_freq);
         interfere(modulated, space_for_modulation,
-                  (int)(bit_time * carrier_freq * 8 * PACKET_SIZE * number));
+                  (int)(bit_time * carrier_freq * BITS_PER_BYTE * PACKET_SIZE *
+                        number));
 
         time(&rawtime);
         current_time = asctime(localtime(&rawtime));
@@ -196,15 +196,16 @@ int main() {
         encode(space_for_encoding, ether, PACKET_SIZE,
                alphabet_for_all_users[users_num], number);
         bpsk_modulation(space_for_modulation, space_for_encoding, carrier_wave,
-                        number, 8);
+                        number, bit_time * carrier_freq);
         interfere(modulated, space_for_modulation,
-                  (int)(bit_time * carrier_freq * 8 * PACKET_SIZE * number));
+                  (int)(bit_time * carrier_freq * BITS_PER_BYTE * PACKET_SIZE *
+                        number));
       }
     }
-
-    char ***demodulated = bpsk_demodulation(
-        modulated, carrier_wave, semi_carrier_wave_sum, 8, PACKET_SIZE, number);
-    for (int i = 0; i < output_files.size(); ++i) {
+    char ***demodulated =
+        bpsk_demodulation(modulated, carrier_wave, semi_carrier_wave_sum,
+                          bit_time * carrier_freq, PACKET_SIZE, number);
+    for (int i = 0; i < users_num; ++i) {
       // если файл уже закончился
       if (ended.find(i) != ended.end()) continue;
 
@@ -231,6 +232,7 @@ int main() {
                 << " got message from user " << i << "\n";
       log << current_time << ": Receiver " << i << " got message from user "
           << i << "\n";
+
       int error = find_diff(decoded, got_message[i], PACKET_SIZE);
       if (error > 0) {
         ++errors[i].second;
@@ -244,7 +246,7 @@ int main() {
       delete[] got_message[i];
     }
     for (int i = 0; i < PACKET_SIZE; ++i) {
-      for (int j = 0; j < 8; ++j) {
+      for (int j = 0; j < BITS_PER_BYTE; ++j) {
         delete[] demodulated[i][j];
       }
       delete[] demodulated[i];
@@ -260,29 +262,17 @@ int main() {
   std::cout << "Total elapsed time: " << difftime(end_time, start_time)
             << " sec\n";
 
-  // FIX
-  //  for (int i = 0; i < users_num; ++i) {
-  //    for (int j = 0; j < 256; ++j) {
-  //      for (int k = 0; k < 8; ++k) {
-  //        delete[] alphabet_for_all_users[i][j][k];
-  //      }
-  //      delete[] alphabet_for_all_users[i][j];
-  //    }
-  //    delete[] alphabet_for_all_users[i];
-  //  }
-  //  delete[] alphabet_for_all_users;
-
   delete[] t;
   delete[] carrier_wave;
   delete[] ether;
   delete[] modulated;
   std::ofstream graph("../errors.csv", std::ios::out);
   graph << "Packets, kilobytes;Errors, packets\n";
-  for (int i = 0; i < users_num - static_cast<int>(flag_for_subcarrier); ++i) {
+  for (int i = 0; i < users_num; ++i) {
     graph << errors[i].first << ";" << errors[i].second << "\n";
   }
   std::cout << "Sender --> Receiver\n";
-  for (int i = 0; i < users_num - static_cast<int>(flag_for_subcarrier); ++i) {
+  for (int i = 0; i < users_num; ++i) {
     std::cout << files_for_input[i] << " --> " << files_for_output[i]
               << " Code: ";
     for (int j = 0; j < number; ++j) {

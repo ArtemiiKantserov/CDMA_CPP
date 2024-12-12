@@ -1,5 +1,6 @@
 #include "temp_bpsk.hpp"
 
+#include <iostream>
 #define M_PI 3.14159265358979323846
 
 auto linspace(double start, double end, int count, bool endpoint) -> double* {
@@ -58,11 +59,11 @@ auto bpsk_modulation(double* space, char*** bits, double* carrier_wave,
       for (int k = 0; k < len_hadamard; ++k) {
         if (bits[i][j][k] == 1) {
           for (int l = 0; l < len_wave; ++l) {
-            space[index++] = (carrier_wave[l] /* + noise(-0.1, 0.1)*/);
+            space[index++] = (carrier_wave[l] + noise(-0.1, 0.1));
           }
         } else {
           for (int l = 0; l < len_wave; ++l) {
-            space[index++] = -(carrier_wave[l] /* + noise(-0.1, 0.1)*/);
+            space[index++] = -(carrier_wave[l] + noise(-0.1, 0.1));
           }
         }
       }
