@@ -22,4 +22,6 @@ auto add_subcarrier(double* first, double* second, int len) -> void;
 auto create_subcarrier(double* carrier_wave, int len,
                        int hadamard_size) -> double*;
 
+auto noise(double min, double max) -> double;
+
 #endif /* _t33nsy_TEMP_BPSK */

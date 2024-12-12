@@ -39,8 +39,7 @@ auto bpsk_demodulation(double* signal, double* carrier_wave,
         for (int l = 0; l < samples_per_bit / 2; ++l) {
           ratio += signal[i * 8 * samples_per_bit * key_length +
                           j * key_length * samples_per_bit +
-                          k * samples_per_bit + l] *
-                   carrier_wave[l];
+                          k * samples_per_bit + l];
         }
         if (ratio / semi_carrier_wave_sum > 0) {
           demodulated[i][j][k] = 1;
