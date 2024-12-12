@@ -46,6 +46,10 @@ auto bpsk_modulation(char*** bits, double* carrier_wave, int len_hadamard,
   return moduleted_signal;
 }
 
+auto noise(double min, double max) -> double {
+  return (double)(rand()) / RAND_MAX * (max - min) + min;
+}
+
 auto bpsk_modulation(double* space, char*** bits, double* carrier_wave,
                      int len_hadamard, int len_wave) -> void {
   int index = 0;
@@ -54,21 +58,18 @@ auto bpsk_modulation(double* space, char*** bits, double* carrier_wave,
       for (int k = 0; k < len_hadamard; ++k) {
         if (bits[i][j][k] == 1) {
           for (int l = 0; l < len_wave; ++l) {
-            space[index++] =
-                carrier_wave[l] +
-                static_cast<double>(std::rand() % 30000 - 15000) / 1000000.0;
+            space[index++] = (carrier_wave[l] /* + noise(-0.1, 0.1)*/);
           }
         } else {
           for (int l = 0; l < len_wave; ++l) {
-            space[index++] =
-                -(carrier_wave[l] +
-                  static_cast<double>(std::rand() % 30000 - 15000) / 1000000.0);
+            space[index++] = -(carrier_wave[l] /* + noise(-0.1, 0.1)*/);
           }
         }
       }
     }
   }
 }
+
 auto interfere(double* first, double* second, int len) -> void {
   for (int i = 0; i < len; ++i) {
     first[i] += second[i];
