@@ -47,8 +47,10 @@ int main() {
 
   // задаем вторую несущую (пустого отправителя) для случаев, когда
   // пользователей четное число и может произойти зануление в bpsk
+  bool flag_for_subcarrier = false;
   if (users_num % 2 == 0) {
     ++number;
+    flag_for_subcarrier = true;
   }
 
   // быстрое определение ближайшей степени двойки для построения матрицы
@@ -274,13 +276,13 @@ int main() {
   delete[] carrier_wave;
   delete[] ether;
   delete[] modulated;
-  std::ofstream graph("../errors.csv", std::ios::out);
-  graph << "Packets, kilobytes;Errors, packets\n";
-  for (int i = 0; i < users_num; ++i) {
+  std::ofstream graph("../noise_errors.csv", std::ios::out);
+  // graph << "Packets, kilobytes;Errors, packets\n";
+  for (int i = 0; i < users_num - static_cast<int>(flag_for_subcarrier); ++i) {
     graph << errors[i].first << ";" << errors[i].second << "\n";
   }
   std::cout << "Sender --> Receiver\n";
-  for (int i = 0; i < users_num; ++i) {
+  for (int i = 0; i < users_num - static_cast<int>(flag_for_subcarrier); ++i) {
     std::cout << files_for_input[i] << " --> " << files_for_output[i]
               << " Code: ";
     for (int j = 0; j < number; ++j) {

@@ -15,6 +15,10 @@ auto bpsk_modulation(char*** bits, double* carrier_wave, int len_hadamard,
 auto bpsk_modulation(double* space, char*** bits, double* carrier_wave,
                      int len_hadamard, int len_wave) -> void;
 
+auto bpsk_modulation(double* space, char*** bits, double* carrier_wave,
+                     int len_hadamard, int len_wave, double min_noise,
+                     double max_noise) -> void;
+
 auto interfere(double* first, double* second, int len) -> void;
 
 auto add_subcarrier(double* first, double* second, int len) -> void;

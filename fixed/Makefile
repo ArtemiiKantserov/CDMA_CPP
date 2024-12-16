@@ -1,4 +1,5 @@
 1 = ./built_from_Make/main.exe
+2 = ./built_from_Make/plots.exe
 ifdef OS
 	RM = del /Q
 	FixPath = $(subst /,\,$1)
@@ -10,7 +11,10 @@ else
 endif
 
 all:
-	g++ -std=c++20 -g *.cpp -o $(1)
+	g++ -std=c++20 hadamard.cpp encode.cpp temp_bpsk.cpp temp_debpsk.cpp main.cpp -o $(1)
+
+noise:
+	g++ -std=c++20 *.cpp -o $(2)
 
 clean:
 	$(RM) $(FixPath)
