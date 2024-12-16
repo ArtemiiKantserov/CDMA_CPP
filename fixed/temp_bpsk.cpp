@@ -58,11 +58,32 @@ auto bpsk_modulation(double* space, char*** bits, double* carrier_wave,
       for (int k = 0; k < len_hadamard; ++k) {
         if (bits[i][j][k] == 1) {
           for (int l = 0; l < len_wave; ++l) {
-            space[index++] = (carrier_wave[l] /* + noise(-0.1, 0.1)*/);
+            space[index++] = (carrier_wave[l] + noise(-0.1, 0.1));
           }
         } else {
           for (int l = 0; l < len_wave; ++l) {
-            space[index++] = -(carrier_wave[l] /* + noise(-0.1, 0.1)*/);
+            space[index++] = -(carrier_wave[l] + noise(-0.1, 0.1));
+          }
+        }
+      }
+    }
+  }
+}
+
+auto bpsk_modulation(double* space, char*** bits, double* carrier_wave,
+                     int len_hadamard, int len_wave, double min_noise,
+                     double max_noise) -> void {
+  int index = 0;
+  for (int i = 0; i < 1024; ++i) {
+    for (int j = 0; j < 8; ++j) {
+      for (int k = 0; k < len_hadamard; ++k) {
+        if (bits[i][j][k] == 1) {
+          for (int l = 0; l < len_wave; ++l) {
+            space[index++] = (carrier_wave[l] + noise(-0.1, 0.1));
+          }
+        } else {
+          for (int l = 0; l < len_wave; ++l) {
+            space[index++] = -(carrier_wave[l] + noise(-0.1, 0.1));
           }
         }
       }
