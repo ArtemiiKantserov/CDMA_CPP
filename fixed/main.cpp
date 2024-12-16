@@ -271,7 +271,10 @@ int main() {
   //  delete[] alphabet_for_all_users;
 
   delete[] t;
-  delete[] carrier_wave;
+  // delete[] carrier_wave;
+  delete[] space_for_encoding;
+  delete[] space_for_modulation;
+  delete[] alphabet_for_all_users;
   delete[] ether;
   delete[] modulated;
   std::ofstream graph("../errors.csv", std::ios::out);
