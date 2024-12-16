@@ -30,10 +30,8 @@ double iterate(double noise_lower_limit, double noise_upper_limit) {
 
   // задаем вторую несущую (пустого отправителя) для случаев, когда
   // пользователей четное число и может произойти зануление в bpsk
-  bool flag_for_subcarrier = false;
   if (users_num % 2 == 0) {
     ++number;
-    flag_for_subcarrier = true;
   }
 
   // быстрое определение ближайшей степени двойки для построения матрицы
@@ -186,11 +184,11 @@ double iterate(double noise_lower_limit, double noise_upper_limit) {
   }
 
   delete[] t;
-  delete[] carrier_wave;
+  // delete[] carrier_wave;
   delete[] ether;
   delete[] modulated;
   long long max_error = 0, max_packets = 0;
-  for (int i = 0; i < users_num - static_cast<int>(flag_for_subcarrier); ++i) {
+  for (int i = 0; i < users_num; ++i) {
     max_error = std::max(max_error, errors[i].second);
     max_packets = std::max(max_packets, errors[i].first);
   }
@@ -200,6 +198,9 @@ double iterate(double noise_lower_limit, double noise_upper_limit) {
   }
   delete[] hadamard;
   delete[] negative_hadamard;
+  delete[] space_for_encoding;
+  delete[] space_for_modulation;
+  delete[] alphabet_for_all_users;
   return static_cast<double>(max_error) / max_packets;
 }
 
@@ -217,12 +218,15 @@ int main(int argc, char *argv[]) {
   std::ofstream graph("../noise_errors.csv", std::ios::out);
   srand(time(0));
   for (double i = 0; noise_lower_limit + i < noise_upper_limit - i; i += step) {
-    double std = 0;
+    double mean = 0;
     for (int j = 0; j < number_of_tests; ++j) {
-      std += iterate(noise_lower_limit + i, noise_upper_limit - i);
+      mean += iterate(noise_lower_limit + i, noise_upper_limit - i);
+      std::cout << j << " ";
     }
-    std /= number_of_tests;
-    graph << std << ";" << noise_upper_limit - noise_lower_limit - i * 2
+    mean /= (double)number_of_tests;
+    std::cout << mean << std::endl;
+    std::cout << noise_upper_limit - noise_lower_limit - i * 2 << std::endl;
+    graph << mean << ";" << noise_upper_limit - noise_lower_limit - i * 2
           << "\n";
   }
   return 0;
