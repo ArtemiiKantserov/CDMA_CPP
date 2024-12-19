@@ -26,7 +26,7 @@ int main() {
     files.push_back(std::ifstream(entry.path()));
     files_for_input.push_back(entry.path().string());
   }
-  int number = files.size(), users_num = files.size();
+  int number = files.size() + 1, users_num = files.size();
 
   // очищаем файлы для получения
   std::vector<std::ofstream> output_files(users_num);
@@ -41,12 +41,6 @@ int main() {
     if (output_files[i].fail()) {
       std::cout << "Error: can't open file " << files_for_output[i] << ".txt\n";
     }
-  }
-
-  // задаем вторую несущую (пустого отправителя) для случаев, когда
-  // пользователей четное число и может произойти зануление в bpsk
-  if (users_num % 2 == 0) {
-    ++number;
   }
 
   // быстрое определение ближайшей степени двойки для построения матрицы
@@ -74,8 +68,8 @@ int main() {
 
   // создаем алфавит для пользователей
   char *alphabet_for_all_users =
-      new char[(users_num + 1) * CHARS_NUM * BYTE_SIZE * number];
-  for (int i = 0; i < users_num + 1; ++i) {
+      new char[number * CHARS_NUM * BYTE_SIZE * number];
+  for (int i = 0; i < number; ++i) {
     generate_all_chars(
         alphabet_for_all_users + i * CHARS_NUM * BYTE_SIZE * number,
         hadamard[i], negative_hadamard[i], number);
@@ -124,15 +118,17 @@ int main() {
   double *space_for_modulation = new double[space_needed];
 
   char *space_for_encoding = new char[PACKET_SIZE * number * BYTE_SIZE];
-  // char ***space_for_encoding = new char **[PACKET_SIZE];
   char *demodulated = new char[PACKET_SIZE * number * BYTE_SIZE];
   double *modulated = new double[space_needed];
 
   // цикл до конца всех файлов
   while (true) {
-    int n = 0, iterative_num = 0;
+    int n = 0, current_users = 0;
     bool end = false;
     std::fill(modulated, modulated + space_needed, 0.0);
+    std::fill(space_for_modulation, space_for_modulation + space_needed, 0.0);
+    std::fill(space_for_encoding,
+              space_for_encoding + PACKET_SIZE * number * BYTE_SIZE, 0);
     // массив для проверки корректности передачи пакетов
     char **got_message = new char *[users_num];
 
@@ -153,7 +149,7 @@ int main() {
         // считываем пакет размером 1 Кб
         files[i].read(ether, PACKET_SIZE);
         strcpy(got_message[i], ether);
-        ++iterative_num;
+        ++current_users;
 
         time(&rawtime);
         current_time = asctime(localtime(&rawtime));
@@ -175,7 +171,7 @@ int main() {
 
         // bpsk
         bpsk_modulation(space_for_modulation, space_for_encoding, carrier_wave,
-                        number, BYTE_SIZE, -0.15, 0.15);
+                        number, bit_time * carrier_freq, -0.15, 0.15);
         interfere(modulated, space_for_modulation, space_needed);
 
         time(&rawtime);
@@ -183,24 +179,25 @@ int main() {
         current_time.pop_back();
         log << current_time << ": Message from user " << i << " modulated\n";
       }
-      if (i == users_num - 1 && iterative_num % 2 == 0) {
-        // если количество пользователей четное, необходимо забить канал еще
-        // одним пустым "пользователем", чтобы не происходило возможного
-        // зануления сигнала
-        std::fill(ether, ether + PACKET_SIZE, 0);
-        encode(space_for_encoding, ether, PACKET_SIZE,
-               alphabet_for_all_users + i * CHARS_NUM * BYTE_SIZE * number,
-               number);
-        bpsk_modulation(space_for_modulation, space_for_encoding, carrier_wave,
-                        number, BYTE_SIZE, -0.15, 0.15);
-        interfere(modulated, space_for_modulation, space_needed);
-      }
+    }
+    if (current_users % 2 == 0) {
+      // если количество пользователей четное, необходимо забить канал еще
+      // одним пустым "пользователем", чтобы не происходило возможного
+      // зануления сигнала
+      std::fill(ether, ether + PACKET_SIZE, 0);
+      encode(
+          space_for_encoding, ether, PACKET_SIZE,
+          alphabet_for_all_users + users_num * CHARS_NUM * BYTE_SIZE * number,
+          number);
+      bpsk_modulation(space_for_modulation, space_for_encoding, carrier_wave,
+                      number, bit_time * carrier_freq, 0, 0);
+      interfere(modulated, space_for_modulation, space_needed);
     }
 
-    bpsk_demodulation(demodulated, modulated, semi_carrier_wave_sum, BYTE_SIZE,
-                      PACKET_SIZE, number);
+    bpsk_demodulation(demodulated, modulated, semi_carrier_wave_sum,
+                      bit_time * carrier_freq, PACKET_SIZE, number);
 
-    for (int i = 0; i < output_files.size(); ++i) {
+    for (int i = 0; i < users_num; ++i) {
       // если файл уже закончился
       if (ended.find(i) != ended.end()) continue;
 
@@ -256,7 +253,9 @@ int main() {
   delete[] ether;
   delete[] modulated;
   std::ofstream graph("../errors.csv", std::ios::out);
-  graph << "Packets, kilobytes;Errors, packets\n";
+  graph << "Packets;Errors\n";
+  // std::sort(errors.begin(), errors.end(),
+  //           [](auto a, auto b) { return a.first < b.first; });
   for (int i = 0; i < users_num; ++i) {
     graph << errors[i].first << ";" << errors[i].second << "\n";
   }

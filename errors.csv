@@ -1,8 +1,7 @@
-Packets, kilobytes;Errors, packets
-102;1
-89;1
-40;1
-39;0
-64;3
-57;3
-48;10
+Packets;Errors
+74;0
+74;0
+89;0
+102;0
+144;0
+204;0
