@@ -53,7 +53,7 @@ auto matrix_multiply(char* a, char* key, int key_size) -> char {
 }
 
 auto decode(char* coded, int length, char* key, int key_size) -> char* {
-  char* decoded = new char[length];
+  char* decoded = new char[length]{0};
   for (int i = 0; i < length; ++i) {
     decoded[i] = matrix_multiply(coded + i * 8 * key_size, key, key_size);
   }
