@@ -91,6 +91,27 @@ auto bpsk_modulation(double* space, char*** bits, double* carrier_wave,
   }
 }
 
+auto bpsk_modulation(double* space, char* bits, double* carrier_wave,
+                     int len_hadamard, int len_wave, double min_noise,
+                     double max_noise) -> void {
+  int index = 0;
+  for (int i = 0; i < 1024; ++i) {
+    for (int j = 0; j < 8; ++j) {
+      for (int k = 0; k < len_hadamard; ++k) {
+        if (bits[i * 8 * len_hadamard + j * len_hadamard + k] == 1) {
+          for (int l = 0; l < len_wave; ++l) {
+            space[index++] = (carrier_wave[l] + noise(min_noise, max_noise));
+          }
+        } else {
+          for (int l = 0; l < len_wave; ++l) {
+            space[index++] = -(carrier_wave[l] + noise(min_noise, max_noise));
+          }
+        }
+      }
+    }
+  }
+}
+
 auto interfere(double* first, double* second, int len) -> void {
   for (int i = 0; i < len; ++i) {
     first[i] += second[i];

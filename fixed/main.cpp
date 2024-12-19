@@ -75,10 +75,11 @@ int main() {
   generate_hadamard(negative_hadamard, number, 0, 0, -1);
 
   // создаем алфавит для пользователей
-  char ****alphabet_for_all_users = new char ***[users_num + 1];
+  char *alphabet_for_all_users = new char[(users_num + 1) * 256 * 8 * number];
+  // char ****alphabet_for_all_users = new char ***[users_num + 1];
   for (int i = 0; i < users_num + 1; ++i) {
-    alphabet_for_all_users[i] =
-        generate_all_chars(hadamard[i], negative_hadamard[i], number);
+    generate_all_chars(alphabet_for_all_users + i * 256 * 8 * number,
+                       hadamard[i], negative_hadamard[i], number);
   }
 
   // создадим переменную для времени в данный момент
@@ -119,12 +120,10 @@ int main() {
   // выделяем память под модулированный сигнал
   double *space_for_modulation =
       new double[(int)(bit_time * carrier_freq * 8 * PACKET_SIZE * number)];
-  std::fill(space_for_modulation,
-            space_for_modulation +
-                (int)(bit_time * carrier_freq * 8 * PACKET_SIZE * number),
-            0);
 
-  char ***space_for_encoding = new char **[PACKET_SIZE];
+  char *space_for_encoding = new char[PACKET_SIZE * number * 8];
+  // char ***space_for_encoding = new char **[PACKET_SIZE];
+  char *demodulated = new char[PACKET_SIZE * number * 8];
   double *modulated =
       new double[(int)(bit_time * carrier_freq * 8 * PACKET_SIZE * number)];
 
@@ -161,30 +160,30 @@ int main() {
         time(&rawtime);
         current_time = asctime(localtime(&rawtime));
         current_time.pop_back();
-        std::cout << current_time << ": To ether added 1 KB packet from user "
-                  << i << "\n";
-        log << current_time << ": To ether added 1 KB packet from user " << i
-            << "\n";
+        std::cout << current_time << ": Added 1 KB packet from user " << i
+                  << " to ether\n";
+        log << current_time << ": Added 1 KB packet from user " << i
+            << " to ether\n";
 
         // кодируем пакет
         encode(space_for_encoding, ether, PACKET_SIZE,
-               alphabet_for_all_users[i], number);
+               alphabet_for_all_users + i * 256 * 8 * number, number);
+
         time(&rawtime);
         current_time = asctime(localtime(&rawtime));
         current_time.pop_back();
-        log << current_time << ": Message from user " << i << " was encoded\n";
+        log << current_time << ": Message from user " << i << " encoded\n";
 
         // bpsk
         bpsk_modulation(space_for_modulation, space_for_encoding, carrier_wave,
-                        number, 8);
+                        number, 8, -0.15, 0.15);
         interfere(modulated, space_for_modulation,
                   (int)(bit_time * carrier_freq * 8 * PACKET_SIZE * number));
 
         time(&rawtime);
         current_time = asctime(localtime(&rawtime));
         current_time.pop_back();
-        log << current_time << ": Message from user " << i
-            << " was modulated\n";
+        log << current_time << ": Message from user " << i << " modulated\n";
       }
       if (i == users_num - 1 && iterative_num % 2 == 0) {
         // если количество пользователей четное, необходимо забить канал еще
@@ -192,16 +191,16 @@ int main() {
         // зануления сигнала
         std::fill(ether, ether + PACKET_SIZE, 0);
         encode(space_for_encoding, ether, PACKET_SIZE,
-               alphabet_for_all_users[users_num], number);
+               alphabet_for_all_users + i * 256 * 8 * number, number);
         bpsk_modulation(space_for_modulation, space_for_encoding, carrier_wave,
-                        number, 8);
+                        number, 8, -0.15, 0.15);
         interfere(modulated, space_for_modulation,
                   (int)(bit_time * carrier_freq * 8 * PACKET_SIZE * number));
       }
     }
 
-    char ***demodulated = bpsk_demodulation(
-        modulated, carrier_wave, semi_carrier_wave_sum, 8, PACKET_SIZE, number);
+    bpsk_demodulation(demodulated, modulated, carrier_wave,
+                      semi_carrier_wave_sum, 8, PACKET_SIZE, number);
     for (int i = 0; i < output_files.size(); ++i) {
       // если файл уже закончился
       if (ended.find(i) != ended.end()) continue;
@@ -210,15 +209,14 @@ int main() {
       time(&rawtime);
       current_time = asctime(localtime(&rawtime));
       current_time.pop_back();
-      log << current_time << ": Message from user " << i
-          << " was demodulated\n";
+      log << current_time << ": Message from user " << i << " demodulated\n";
 
       // декодируем пакет
       char *decoded = decode(demodulated, PACKET_SIZE, hadamard[i], number);
       time(&rawtime);
       current_time = asctime(localtime(&rawtime));
       current_time.pop_back();
-      log << current_time << ": Message from user " << i << " was decoded\n";
+      log << current_time << ": Message from user " << i << " decoded\n";
 
       // записываем получателю в файл
       if (output_files[i].is_open()) output_files[i] << decoded;
@@ -241,13 +239,6 @@ int main() {
     for (int i = 0; i < users_num; ++i) {
       delete[] got_message[i];
     }
-    for (int i = 0; i < PACKET_SIZE; ++i) {
-      for (int j = 0; j < 8; ++j) {
-        delete[] demodulated[i][j];
-      }
-      delete[] demodulated[i];
-    }
-    delete[] demodulated;
     delete[] got_message;
 
     if (end) {
