@@ -1,5 +1,3 @@
-#include <string.h>
-
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
@@ -8,16 +6,15 @@
 #include <string>
 #include <vector>
 
+#include "bpsk.hpp"
 #include "encode.hpp"
 #include "hadamard.hpp"
-#include "temp_bpsk.hpp"
-#include "temp_debpsk.hpp"
 
 #define PACKET_SIZE 1024
+#define BYTE_SIZE 8
+#define CHARS_NUM 256
 
-int main() {
-  srand(time(0));
-  // std::string path = "messages/", output_path = "received_messages/message";
+double iterate(double noise_lower_limit, double noise_upper_limit) {
   std::string path = "../messages/",
               output_path = "../received_messages/message";
   std::vector<std::ifstream> files;
@@ -29,21 +26,6 @@ int main() {
     files_for_input.push_back(entry.path().string());
   }
   int number = files.size(), users_num = files.size();
-
-  // очищаем файлы для получения
-  std::vector<std::ofstream> output_files(users_num);
-
-  // закидываем все файлы, куда будут записаны переданный данные в массив
-  for (int i = 0; i < users_num; ++i) {
-    files_for_output.push_back(output_path + std::to_string(i + 1) + ".txt");
-  }
-  std::sort(files_for_output.begin(), files_for_output.end());
-  for (int i = 0; i < users_num; ++i) {
-    output_files[i] = std::ofstream(files_for_output[i], std::ios_base::out);
-    if (output_files[i].fail()) {
-      std::cout << "Error: can't open file " << files_for_output[i] << ".txt\n";
-    }
-  }
 
   // задаем вторую несущую (пустого отправителя) для случаев, когда
   // пользователей четное число и может произойти зануление в bpsk
@@ -75,25 +57,13 @@ int main() {
   generate_hadamard(negative_hadamard, number, 0, 0, -1);
 
   // создаем алфавит для пользователей
-  char *alphabet_for_all_users = new char[(users_num + 1) * 256 * 8 * number];
-  // char ****alphabet_for_all_users = new char ***[users_num + 1];
+  char *alphabet_for_all_users =
+      new char[(users_num + 1) * CHARS_NUM * BYTE_SIZE * number];
   for (int i = 0; i < users_num + 1; ++i) {
-    generate_all_chars(alphabet_for_all_users + i * 256 * 8 * number,
-                       hadamard[i], negative_hadamard[i], number);
+    generate_all_chars(
+        alphabet_for_all_users + i * CHARS_NUM * BYTE_SIZE * number,
+        hadamard[i], negative_hadamard[i], number);
   }
-
-  // создадим переменную для времени в данный момент
-  time_t rawtime, start_time, end_time;
-  struct tm *timeinfo;
-
-  // текущая дата, выраженная в секундах
-  time(&rawtime);
-  time(&start_time);
-
-  // текущая дата, представленная в нормальной форме
-  timeinfo = localtime(&rawtime);
-  std::string current_time = asctime(timeinfo);
-  std::cout << "Current time: " << current_time;
 
   // calloc для инициализации \0
   char *ether = new char[PACKET_SIZE];
@@ -114,27 +84,23 @@ int main() {
   // множество для проверки конца передачи
   std::set<int> ended;
 
-  // будем записывать время и операции в файл latest.log
-  std::ofstream log("../latest.log", std::ios::out);
+  // количество памяти необходимое под модулированный сигнал
+  int space_needed =
+      (int)(bit_time * carrier_freq * BYTE_SIZE * PACKET_SIZE * number);
 
   // выделяем память под модулированный сигнал
-  double *space_for_modulation =
-      new double[(int)(bit_time * carrier_freq * 8 * PACKET_SIZE * number)];
+  double *space_for_modulation = new double[space_needed];
 
-  char *space_for_encoding = new char[PACKET_SIZE * number * 8];
+  char *space_for_encoding = new char[PACKET_SIZE * number * BYTE_SIZE];
   // char ***space_for_encoding = new char **[PACKET_SIZE];
-  char *demodulated = new char[PACKET_SIZE * number * 8];
-  double *modulated =
-      new double[(int)(bit_time * carrier_freq * 8 * PACKET_SIZE * number)];
+  char *demodulated = new char[PACKET_SIZE * number * BYTE_SIZE];
+  double *modulated = new double[space_needed];
 
   // цикл до конца всех файлов
   while (true) {
     int n = 0, iterative_num = 0;
     bool end = false;
-    std::fill(
-        modulated,
-        modulated + (int)(bit_time * carrier_freq * 8 * PACKET_SIZE * number),
-        0.0);
+    std::fill(modulated, modulated + space_needed, 0.0);
     // массив для проверки корректности передачи пакетов
     char **got_message = new char *[users_num];
 
@@ -145,7 +111,6 @@ int main() {
 
       // если файл кончился
       if (files[i].eof()) {
-        output_files[i].close();
         ended.insert(i);
         // все файлы кончились
         if (ended.size() == users_num) {
@@ -157,33 +122,16 @@ int main() {
         strcpy(got_message[i], ether);
         ++iterative_num;
 
-        time(&rawtime);
-        current_time = asctime(localtime(&rawtime));
-        current_time.pop_back();
-        std::cout << current_time << ": Added 1 KB packet from user " << i
-                  << " to ether\n";
-        log << current_time << ": Added 1 KB packet from user " << i
-            << " to ether\n";
-
         // кодируем пакет
         encode(space_for_encoding, ether, PACKET_SIZE,
-               alphabet_for_all_users + i * 256 * 8 * number, number);
-
-        time(&rawtime);
-        current_time = asctime(localtime(&rawtime));
-        current_time.pop_back();
-        log << current_time << ": Message from user " << i << " encoded\n";
+               alphabet_for_all_users + i * CHARS_NUM * BYTE_SIZE * number,
+               number);
 
         // bpsk
         bpsk_modulation(space_for_modulation, space_for_encoding, carrier_wave,
-                        number, 8, -0.15, 0.15);
-        interfere(modulated, space_for_modulation,
-                  (int)(bit_time * carrier_freq * 8 * PACKET_SIZE * number));
-
-        time(&rawtime);
-        current_time = asctime(localtime(&rawtime));
-        current_time.pop_back();
-        log << current_time << ": Message from user " << i << " modulated\n";
+                        number, BYTE_SIZE, noise_lower_limit,
+                        noise_upper_limit);
+        interfere(modulated, space_for_modulation, space_needed);
       }
       if (i == users_num - 1 && iterative_num % 2 == 0) {
         // если количество пользователей четное, необходимо забить канал еще
@@ -191,49 +139,32 @@ int main() {
         // зануления сигнала
         std::fill(ether, ether + PACKET_SIZE, 0);
         encode(space_for_encoding, ether, PACKET_SIZE,
-               alphabet_for_all_users + i * 256 * 8 * number, number);
+               alphabet_for_all_users + i * CHARS_NUM * BYTE_SIZE * number,
+               number);
         bpsk_modulation(space_for_modulation, space_for_encoding, carrier_wave,
-                        number, 8, -0.15, 0.15);
-        interfere(modulated, space_for_modulation,
-                  (int)(bit_time * carrier_freq * 8 * PACKET_SIZE * number));
+                        number, BYTE_SIZE, noise_lower_limit,
+                        noise_upper_limit);
+        interfere(modulated, space_for_modulation, space_needed);
       }
     }
 
-    bpsk_demodulation(demodulated, modulated, carrier_wave,
-                      semi_carrier_wave_sum, 8, PACKET_SIZE, number);
-    for (int i = 0; i < output_files.size(); ++i) {
+    bpsk_demodulation(demodulated, modulated, semi_carrier_wave_sum, BYTE_SIZE,
+                      PACKET_SIZE, number);
+
+    for (int i = 0; i < users_num; ++i) {
       // если файл уже закончился
       if (ended.find(i) != ended.end()) continue;
 
-      // debpsk
-      time(&rawtime);
-      current_time = asctime(localtime(&rawtime));
-      current_time.pop_back();
-      log << current_time << ": Message from user " << i << " demodulated\n";
-
       // декодируем пакет
       char *decoded = decode(demodulated, PACKET_SIZE, hadamard[i], number);
-      time(&rawtime);
-      current_time = asctime(localtime(&rawtime));
-      current_time.pop_back();
-      log << current_time << ": Message from user " << i << " decoded\n";
 
       // записываем получателю в файл
-      if (output_files[i].is_open()) output_files[i] << decoded;
-      time(&rawtime);
-      current_time = asctime(localtime(&rawtime));
-      current_time.pop_back();
-      std::cout << current_time << ": Receiver " << i
-                << " got message from user " << i << "\n";
-      log << current_time << ": Receiver " << i << " got message from user "
-          << i << "\n";
       int error = find_diff(decoded, got_message[i], PACKET_SIZE);
       if (error > 0) {
         ++errors[i].second;
-        log << "Packet has difference\n";
       }
       ++errors[i].first;
-      free(decoded);
+      delete[] decoded;
     }
 
     for (int i = 0; i < users_num; ++i) {
@@ -245,42 +176,17 @@ int main() {
       break;
     }
   }
-  time(&end_time);
-  std::cout << "Total elapsed time: " << difftime(end_time, start_time)
-            << " sec\n";
-
-  // FIX
-  //  for (int i = 0; i < users_num; ++i) {
-  //    for (int j = 0; j < 256; ++j) {
-  //      for (int k = 0; k < 8; ++k) {
-  //        delete[] alphabet_for_all_users[i][j][k];
-  //      }
-  //      delete[] alphabet_for_all_users[i][j];
-  //    }
-  //    delete[] alphabet_for_all_users[i];
-  //  }
-  //  delete[] alphabet_for_all_users;
 
   delete[] t;
-  // delete[] carrier_wave;
   delete[] space_for_encoding;
   delete[] space_for_modulation;
   delete[] alphabet_for_all_users;
   delete[] ether;
   delete[] modulated;
-  std::ofstream graph("../errors.csv", std::ios::out);
-  graph << "Packets, kilobytes;Errors, packets\n";
+  long long max_error = 0, max_packets = 0;
   for (int i = 0; i < users_num; ++i) {
-    graph << errors[i].first << ";" << errors[i].second << "\n";
-  }
-  std::cout << "Sender --> Receiver\n";
-  for (int i = 0; i < users_num; ++i) {
-    std::cout << files_for_input[i] << " --> " << files_for_output[i]
-              << " Code: ";
-    for (int j = 0; j < number; ++j) {
-      std::cout << std::setw(2) << (int)hadamard[i][j] << " ";
-    }
-    std::cout << "\n";
+    max_error = std::max(max_error, errors[i].second);
+    max_packets = std::max(max_packets, errors[i].first);
   }
   for (int i = 0; i < number; ++i) {
     delete[] hadamard[i];
@@ -288,5 +194,33 @@ int main() {
   }
   delete[] hadamard;
   delete[] negative_hadamard;
+  return static_cast<double>(max_error) / max_packets;
+}
+
+int main(int argc, char *argv[]) {
+  double noise_lower_limit, noise_upper_limit, step;
+  int number_of_tests;
+  if (argc == 5) {
+    noise_lower_limit = atof(argv[1]);  // нижняя граница
+    noise_upper_limit = atof(argv[2]);  // верхняя граница
+    step = atof(argv[3]);               // шаг
+    number_of_tests = atoi(argv[4]);    // количество тестов
+  } else {
+    return 0;
+  }
+  std::ofstream graph("../noise_errors.csv", std::ios::out);
+  srand(time(0));
+  for (double i = 0; noise_lower_limit + i < noise_upper_limit - i; i += step) {
+    double mean = 0;
+    for (int j = 0; j < number_of_tests; ++j) {
+      mean += iterate(noise_lower_limit + i, noise_upper_limit - i);
+      std::cout << j << " ";
+    }
+    mean /= (double)number_of_tests;
+    std::cout << mean << std::endl;
+    std::cout << noise_upper_limit - noise_lower_limit - i * 2 << std::endl;
+    graph << mean << ";" << noise_upper_limit - noise_lower_limit - i * 2
+          << "\n";
+  }
   return 0;
 }
