@@ -17,7 +17,7 @@ cd ./built_from_Make
 ```bash
 cd ./build
 cmake ..
-(cmake --build ..)
+cmake --build .
 ./main.exe
 ```
 
