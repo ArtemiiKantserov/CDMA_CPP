@@ -18,6 +18,7 @@ auto generate_carrier_wave(int count, double* arr,
                            int carrier_freq) -> double* {
   double* carrier_wave = new double[count];
   for (int i = 0; i < count; ++i) {
+    // генерируем несущую (синусоиду)
     carrier_wave[i] = sin(2 * M_PI * carrier_freq * arr[i]);
   }
   return carrier_wave;
@@ -35,11 +36,15 @@ auto bpsk_modulation(double* space, char* bits, double* carrier_wave,
     for (int j = 0; j < 8; ++j) {
       for (int k = 0; k < len_hadamard; ++k) {
         if (bits[i * 8 * len_hadamard + j * len_hadamard + k] == 1) {
+          // закодированное значение - единица
           for (int l = 0; l < len_wave; ++l) {
+            // модулируем саму несущую
             space[index++] = (carrier_wave[l] + noise(min_noise, max_noise));
           }
         } else {
+          // закодированное значение - не единица
           for (int l = 0; l < len_wave; ++l) {
+            // модулируем несущую, повернутую на 180
             space[index++] = -(carrier_wave[l] + noise(min_noise, max_noise));
           }
         }
@@ -61,14 +66,17 @@ auto bpsk_demodulation(char* demodulated, double* signal,
     for (int j = 0; j < 8; ++j) {
       for (int k = 0; k < key_length; ++k) {
         double ratio = 0, sum1 = 0, sum2 = 0;
+        // считаем отношение половины амплитуды волны к несущей
         for (int l = 0; l < samples_per_bit / 2; ++l) {
           ratio += signal[i * 8 * samples_per_bit * key_length +
                           j * key_length * samples_per_bit +
                           k * samples_per_bit + l];
         }
         if (ratio / semi_carrier_wave_sum > 0) {
+          // отношение больше нуля => демодулируем бит "1"
           demodulated[i * 8 * key_length + j * key_length + k] = 1;
         } else {
+          // отношение меньше нуля => демодулируем бит "0"
           demodulated[i * 8 * key_length + j * key_length + k] = -1;
         }
       }
