@@ -15,9 +15,10 @@ cd ./built_from_Make
 2. 2. В случае запуска собранной при помощи CMake версии необходимо перейти в директорию build/ и запустить main.exe.
 
 ```bash
+mkdir build
 cd ./build
 cmake ..
-(cmake --build ..)
+cmake --build .
 ./main.exe
 ```
 
