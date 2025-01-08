@@ -63,8 +63,18 @@ int main() {
   std::vector<std::pair<long long, long long>> errors(users_num, {0, 0});
 
   // генерируем матрицу адамара и матрицу адамара, умноженную на -1
-  generate_hadamard(hadamard, number, 0, 0, 1);
-  generate_hadamard(negative_hadamard, number, 0, 0, -1);
+  try {
+    generate_hadamard(hadamard, number, 0, 0, 1);
+  } catch (const char *e) {
+    std::cout << e;
+    return 0;
+  }
+  try {
+    generate_hadamard(negative_hadamard, number, 0, 0, -1);
+  } catch (const char *e) {
+    std::cout << e;
+    return 0;
+  }
 
   // создаем алфавит для пользователей
   char *alphabet_for_all_users =

@@ -1,6 +1,8 @@
 #include "hadamard.hpp"
 
 auto generate_hadamard(char **H, int size, int i, int j, char h) -> void {
+  // проверка на то, что размер - степень двойки
+  if (!(size > 0 && (size & (size - 1)) == 0)) throw "Invalid size";
   if (size == 1)
     // условие выхода из рекурсии
     H[i][j] = h;
