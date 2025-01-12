@@ -133,19 +133,18 @@ double iterate(double noise_lower_limit, double noise_upper_limit) {
                         noise_upper_limit);
         interfere(modulated, space_for_modulation, space_needed);
       }
-      if (i == users_num - 1 && iterative_num % 2 == 0) {
-        // если количество пользователей четное, необходимо забить канал еще
-        // одним пустым "пользователем", чтобы не происходило возможного
-        // зануления сигнала
-        std::fill(ether, ether + PACKET_SIZE, 0);
-        encode(space_for_encoding, ether, PACKET_SIZE,
-               alphabet_for_all_users + i * CHARS_NUM * BYTE_SIZE * number,
-               number);
-        bpsk_modulation(space_for_modulation, space_for_encoding, carrier_wave,
-                        number, BYTE_SIZE, noise_lower_limit,
-                        noise_upper_limit);
-        interfere(modulated, space_for_modulation, space_needed);
-      }
+    }
+    if (iterative_num % 2 == 0) {
+      // если количество пользователей четное, необходимо забить канал еще
+      // одним пустым "пользователем", чтобы не происходило возможного
+      // зануления сигнала
+      std::fill(ether, ether + PACKET_SIZE, 0);
+      encode(space_for_encoding, ether, PACKET_SIZE,
+             alphabet_for_all_users + users_num * CHARS_NUM * BYTE_SIZE * number,
+             number);
+      bpsk_modulation(space_for_modulation, space_for_encoding, carrier_wave,
+                      number, BYTE_SIZE, noise_lower_limit, noise_upper_limit);
+      interfere(modulated, space_for_modulation, space_needed);
     }
 
     bpsk_demodulation(demodulated, modulated, semi_carrier_wave_sum, BYTE_SIZE,
