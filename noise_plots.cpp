@@ -197,19 +197,20 @@ double iterate(double noise_lower_limit, double noise_upper_limit) {
 }
 
 int main(int argc, char *argv[]) {
-  double noise_lower_limit, noise_upper_limit, step;
+  double noise_lower_limit, noise_upper_limit, step, stop;
   int number_of_tests;
-  if (argc == 5) {
+  if (argc == 6) {
     noise_lower_limit = atof(argv[1]);  // нижняя граница
     noise_upper_limit = atof(argv[2]);  // верхняя граница
     step = atof(argv[3]);               // шаг
     number_of_tests = atoi(argv[4]);    // количество тестов
+    stop = atof(argv[5]);
   } else {
     return 0;
   }
   std::ofstream graph("../noise_errors.csv", std::ios::out);
   srand(time(0));
-  for (double i = 0; noise_lower_limit + i < noise_upper_limit - i; i += step) {
+  for (double i = 0; noise_lower_limit + i < noise_upper_limit - i && noise_upper_limit - noise_lower_limit -2*i > stop; i += step) {
     double mean = 0;
     for (int j = 0; j < number_of_tests; ++j) {
       mean += iterate(noise_lower_limit + i, noise_upper_limit - i);
@@ -223,3 +224,4 @@ int main(int argc, char *argv[]) {
   }
   return 0;
 }
+
